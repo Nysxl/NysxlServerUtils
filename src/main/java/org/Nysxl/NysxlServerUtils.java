@@ -66,6 +66,7 @@ public class NysxlServerUtils extends JavaPlugin {
         registerViewProfileCommand();
         registerTaxCommand();
         registerTaxViewerCommand();
+        registerSetAvailableTaxCommand();
     }
 
     private void registerTaxCommand() {
@@ -152,6 +153,35 @@ public class NysxlServerUtils extends JavaPlugin {
                 .register();
     }
 
+    private void registerSetAvailableTaxCommand() {
+        commandRegistry.createCommand("setAvailableTax")
+                .requirePlayer()
+                .withPermission("admin.economy.setavailabletaxes")
+                .check(sender -> sender instanceof Player, "Only players can use this command.")
+                .checkWithArgs((sender, args) -> {
+                    if(args == null || args.length < 1) {
+                        throw new IllegalArgumentException("Usage: /setAvailableTax <amount>");
+                    }
+
+                    double newTax = Double.parseDouble(args[0]);
+                    if(newTax < 0) {
+                        throw new IllegalArgumentException("Tax amount must be greater than 0.");
+                    }
+                }, "Invalid arguments.")
+                .onFallback((sender, partial) -> {
+                    sender.sendMessage(ChatColor.RED + "Usage: /setAvailableTax <amount>");
+                })
+                .onExecute((sender, args) -> {
+                    try {
+                        double newTax = Double.parseDouble(args[0]);
+                        economyManager.setAvailableTaxes(newTax);
+                        sender.sendMessage(ChatColor.GREEN + "Available tax updated to " + newTax + ".");
+                    } catch (NumberFormatException e) {
+                        sender.sendMessage(ChatColor.RED + "Invalid number format.");
+                    }
+                })
+                .register();
+    }
 
     //register inventory events
     private void registerInventoryEvents() {
@@ -171,7 +201,6 @@ public class NysxlServerUtils extends JavaPlugin {
     public static DynamicConfigManager getEconomyConfigManager() {
         return economyConfigManager;
     }
-
 
     //set up the economy
     private boolean setupEconomy() {

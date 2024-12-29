@@ -17,3 +17,5 @@ commands:
     description: Set the bounty tax percentage.
   getTaxes:
     description: View total taxes collected.
+  setAvailableTax:
+    description: Set the available tax amount.
