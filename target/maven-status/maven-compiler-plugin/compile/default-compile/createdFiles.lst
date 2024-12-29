@@ -5,7 +5,6 @@ org\Nysxl\InventoryManager\DynamicButton$ClickAction.class
 org\Nysxl\Components\Profiles\ProfileViewer.class
 org\Nysxl\InventoryManager\DynamicButton$ClickAction$1.class
 org\Nysxl\InventoryManager\DynamicInventoryHandler$SlotAction$2.class
-org\Nysxl\Utils\Economy\Economy.class
 org\Nysxl\CommandManager\CommandRegistry$CommandBuilder$SubCommandHandler.class
 org\Nysxl\Components\PermissionChecker\DynamicPermissionCheckCommand$Requests.class
 org\Nysxl\NysxlServerUtils.class
@@ -24,6 +23,7 @@ org\Nysxl\InventoryManager\DynamicInventoryHandler.class
 org\Nysxl\Utils\T.class
 org\Nysxl\CommandManager\CommandRegistry$CommandBuilder$2.class
 org\Nysxl\InventoryManager\DynamicButton$Builder.class
+org\Nysxl\Utils\Economy\EconomyManager.class
 org\Nysxl\InventoryManager\DynamicPagedInventoryHandler$RefreshableSlot.class
 org\Nysxl\InventoryManager\DynamicButton$ClickAction$2.class
 org\Nysxl\InventoryManager\DynamicPagedInventoryHandler$ItemAnimation.class
