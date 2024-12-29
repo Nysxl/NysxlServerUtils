@@ -6,6 +6,7 @@ import org.Nysxl.Components.PermissionChecker.DynamicPermissionCheckCommand;
 import org.Nysxl.Components.Profiles.ProfileViewer;
 import org.Nysxl.InventoryManager.DynamicConfigManager;
 import org.Nysxl.InventoryManager.DynamicInventoryHandler;
+import org.Nysxl.Utils.Economy.EconomyManager;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -13,8 +14,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class NysxlServerUtils extends JavaPlugin {
 
     private CommandRegistry commandRegistry;
-    private static DynamicConfigManager configManager;
+    private static DynamicConfigManager porfileConfigManager;
+    private static DynamicConfigManager economyConfigManager;
     private static Economy economy;
+    private static EconomyManager economyManager;
     private static NysxlServerUtils instance;
 
     @Override
@@ -44,8 +47,13 @@ public class NysxlServerUtils extends JavaPlugin {
     }
 
     private void registerConfigManager() {
-        configManager = new DynamicConfigManager(this);
-        configManager.loadOrCreateDefaultConfig("ProfileViewerConfig"); // Explicitly load the profile config
+        porfileConfigManager = new DynamicConfigManager(this);
+        porfileConfigManager.loadOrCreateDefaultConfig("ProfileViewerConfig"); // Explicitly load the profile config
+
+        economyConfigManager = new DynamicConfigManager(this);
+        economyConfigManager.loadOrCreateDefaultConfig("economy"); // Load the economy config
+
+        economyManager = new EconomyManager(economyConfigManager);
     }
 
     private void registerCommands() {
@@ -101,12 +109,16 @@ public class NysxlServerUtils extends JavaPlugin {
     private void registerInventoryEvents() {
         DynamicInventoryHandler.registerGlobal(this);
 
-        DynamicPermissionCheckCommand permissionHandler = new DynamicPermissionCheckCommand(configManager);
+        DynamicPermissionCheckCommand permissionHandler = new DynamicPermissionCheckCommand(porfileConfigManager);
         permissionHandler.register(this);
     }
 
-    public static DynamicConfigManager getConfigManager() {
-        return configManager;
+    public static DynamicConfigManager getPorfileConfigManager() {
+        return porfileConfigManager;
+    }
+
+    public static DynamicConfigManager getEconomyConfigManager() {
+        return economyConfigManager;
     }
 
     private boolean setupEconomy() {
@@ -127,5 +139,9 @@ public class NysxlServerUtils extends JavaPlugin {
 
     public static NysxlServerUtils getInstance() {
         return instance;
+    }
+
+    public static EconomyManager getEconomyManager() {
+        return economyManager;
     }
 }

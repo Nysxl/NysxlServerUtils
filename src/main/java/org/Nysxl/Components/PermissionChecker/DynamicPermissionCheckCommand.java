@@ -17,7 +17,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
@@ -103,7 +102,7 @@ public class DynamicPermissionCheckCommand implements Listener {
             player.sendMessage(ChatColor.GREEN + "Your request to access the " + ChatColor.AQUA + "/" + commandName +
                     ChatColor.GREEN + " command has been submitted.");
 
-            saveActiveRequests(NysxlServerUtils.getConfigManager());
+            saveActiveRequests(NysxlServerUtils.getPorfileConfigManager());
         }
     }
 
@@ -149,7 +148,7 @@ public class DynamicPermissionCheckCommand implements Listener {
             activeRequests.remove(request);
             gui.removeButton(button, (Player) event.getWhoClicked());
             ((Player) event.getWhoClicked()).sendMessage(ChatColor.GREEN + "Request removed.");
-            saveActiveRequests(NysxlServerUtils.getConfigManager());
+            saveActiveRequests(NysxlServerUtils.getPorfileConfigManager());
         }));
 
 

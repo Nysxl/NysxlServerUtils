@@ -25,7 +25,7 @@ public class ProfileViewer {
     private static FileConfiguration profileConfig;
 
     public ProfileViewer() {
-        profileConfig = NysxlServerUtils.getConfigManager().getConfig("ProfileViewerConfig");
+        profileConfig = NysxlServerUtils.getPorfileConfigManager().getConfig("ProfileViewerConfig");
         if (profileConfig == null) {
             throw new IllegalStateException("ProfileViewerConfig.yml is not loaded!");
         }
