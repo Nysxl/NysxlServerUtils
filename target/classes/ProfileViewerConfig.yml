@@ -1,0 +1,27 @@
+profile:
+  items:
+    - material: PLAYER_HEAD
+      title: "&#00ff00&aBalance:"
+      lore:
+        - "&#00ff00&7Your balance is: &e%vault_eco_balance_formatted%"
+      slot: 0
+      uuid: "f84c6a79-876a-4f7f-a29f-8b2b8f6d52c7"
+      playerName: "Notch"
+      leftClickCommand: "say %player% viewed %target%'s balance"
+      rightClickCommand: "msg %player% Balance: %vault_eco_balance_formatted%"
+      shiftLeftClickCommand: "say Shift-left-clicked the balance"
+      shiftRightClickCommand: "say Shift-right-clicked the balance"
+      middleClickCommand: "say Middle-clicked the balance"
+    - material: END_PORTAL_FRAME
+      title: "&bTeleport to"
+      lore:
+        - "&7Click to teleport to &a%target%"
+      slot: 4
+      leftClickCommand: "tp %target%"
+    - material: DIAMOND_SWORD
+      title: "&#ff0000&cSpecial Sword"
+      lore:
+        - "&7A weapon of great power."
+        - "&#ffaa00&6Legendary Item"
+      slot: 8
+      leftClickCommand: "give %player_name% diamond_sword 1"

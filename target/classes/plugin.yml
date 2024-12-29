@@ -1,0 +1,15 @@
+name: NysxlServerUtils
+version: 1.0
+main: org.Nysxl.NysxlServerUtils
+description: A plugin that allows players to request access to commands they can't use.
+api-version: 1.20
+softdepend:
+  - PlaceholderAPI
+  - Vault
+commands:
+  viewrequests:
+    description: View active requests.
+  reason:
+    description: Provide a reason for a specific command.
+  viewprofile:
+    description: View another player's profile.
