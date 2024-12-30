@@ -228,6 +228,17 @@ public class DynamicPagedInventoryHandler extends DynamicInventoryHandler {
         recalcPageCapacity();
     }
 
+    public void setNavButtonSlots(int nextButton, int prevButton){
+        setNextPageSlot(nextButton);
+        setPrevPageSlot(prevButton);
+    }
+
+    public void setNavButtonSlots(int nextButton, int prevButton, int searchButton){
+        setNextPageSlot(nextButton);
+        setPrevPageSlot(prevButton);
+        setSearchSlot(searchButton);
+    }
+
     public void openPage(Player player, int page) {
         currentPage = Math.max(0, page);
         clearAll();
@@ -276,7 +287,6 @@ public class DynamicPagedInventoryHandler extends DynamicInventoryHandler {
                 .onClick(ClickType.LEFT, DynamicButton.ClickAction.create().onSuccess(eventConsumer))
                 .build();
     }
-
     private List<Integer> findContentSlots() {
         return IntStream.range(0, inventorySize)
                 .filter(i -> !reservedSlots.contains(i))

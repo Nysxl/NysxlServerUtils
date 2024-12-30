@@ -132,6 +132,7 @@ public class DynamicButton {
 
         private UUID headOwnerUUID;
         private String headOwnerName;
+        private ItemStack itemStack;
 
         private Builder() {}
 
@@ -147,6 +148,11 @@ public class DynamicButton {
 
         public Builder lore(List<String> lore) {
             this.lore = lore;
+            return this;
+        }
+
+        public Builder withItemStack(ItemStack itemStack){
+            this.itemStack = itemStack;
             return this;
         }
 
@@ -175,8 +181,16 @@ public class DynamicButton {
         }
 
         public DynamicButton build() {
-            ItemStack stack = new ItemStack(material);
-            ItemMeta meta = stack.getItemMeta();
+            ItemStack stack;
+            ItemMeta meta;
+
+            if (itemStack != null) {
+                stack = itemStack;
+                meta = stack.getItemMeta();
+            } else {
+                stack = new ItemStack(material);
+                meta = stack.getItemMeta();
+            }
 
             if (meta != null) {
                 if (displayName != null) meta.setDisplayName(displayName);
