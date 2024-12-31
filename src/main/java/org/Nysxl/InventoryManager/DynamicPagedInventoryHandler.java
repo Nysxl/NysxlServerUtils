@@ -204,6 +204,27 @@ public class DynamicPagedInventoryHandler extends DynamicInventoryHandler {
         recalcPageCapacity();
     }
 
+    public void addReserverdSlot(int slot) {
+        validateSlot(slot);
+        reservedSlots.add(slot);
+    }
+
+    public void removeReservedSlot(int slot) {
+        reservedSlots.remove(slot);
+    }
+
+    public void addReservedSlots(int... slots) {
+        for (int slot : slots) {
+            addReserverdSlot(slot);
+        }
+    }
+
+    public void removeReservedSlots(int... slots) {
+        for (int slot : slots) {
+            removeReservedSlot(slot);
+        }
+    }
+
     public void setPrevPageSlot(int slot) {
         validateSlot(slot);
         if (slot >= 0) {

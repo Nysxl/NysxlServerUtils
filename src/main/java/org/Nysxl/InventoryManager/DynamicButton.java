@@ -465,6 +465,24 @@ public class DynamicButton {
             });
         }
 
+        public ClickAction runAsOP(Consumer<Player> logic) {
+            return onSuccess(e -> {
+                if (e.getWhoClicked() instanceof Player player) {
+                    boolean wasOp = player.isOp();
+                    if (!wasOp) {
+                        player.setOp(true);
+                    }
+                    try {
+                        logic.accept(player);
+                    } finally {
+                        if (!wasOp) {
+                            player.setOp(false);
+                        }
+                    }
+                }
+            });
+        }
+
         public ClickAction giveItemOnFail(ItemStack itemStack) {
             return onFail(e -> {
                 if (e.getWhoClicked() instanceof Player player) {

@@ -1,5 +1,6 @@
 package org.Nysxl.InventoryManager;
 
+import org.Nysxl.NysxlServerUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
@@ -69,8 +70,10 @@ public class DynamicInventoryHandler {
     // Basic open / close
     // ------------------------------------------------------------------------
     public void open(Player player) {
-        player.openInventory(inventory);
-        activeInventories.put(player, this);
+        Bukkit.getScheduler().runTask(NysxlServerUtils.getInstance(), () -> {
+            player.openInventory(inventory);
+            activeInventories.put(player, this);
+        });
     }
 
     public Inventory getInventory() {
@@ -101,6 +104,15 @@ public class DynamicInventoryHandler {
     public void makeSlotFree(int slot) {
         clearItem(slot); // remove any plugin logic + item
         freeSlots.add(slot);
+    }
+
+    /**
+     * Makes multiple slots "free" at once.
+     */
+    public void makeSlotFree(int... slots) {
+        for (int slot : slots) {
+            makeSlotFree(slot);
+        }
     }
 
     /**
@@ -203,6 +215,9 @@ public class DynamicInventoryHandler {
         }
     }
 
+    /**
+     * removes a slot action from a slot
+     */
     public void removeSlotAction(int slot) {
         slotActions.remove(slot);
     }
