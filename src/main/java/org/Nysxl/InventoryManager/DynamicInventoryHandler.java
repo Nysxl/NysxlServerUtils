@@ -165,12 +165,44 @@ public class DynamicInventoryHandler {
     }
 
     /**
+     * Set a display item in a slot, as the old approach.
+     * @param slot The slot to set the display in
+     * @param display The display to set
+     */
+    public void setDisplay(int slot, DynamicDisplay display) {
+        if (isSlotFree(slot)) {
+            return;
+        }
+        if (display != null) {
+            inventory.setItem(slot, display.getItemStack());
+            display.startPeriodicUpdates(1);
+        } else {
+            clearItem(slot);
+        }
+        // remove new approach
+        slotActions.remove(slot);
+    }
+
+    /**
      * Automatically finds the first empty (non-free) slot and places a DynamicButton there.
      */
     public void addButton(DynamicButton button) {
         int emptySlot = findFirstEmptySlot();
         if (emptySlot >= 0) {
             setButton(emptySlot, button);
+        } else {
+            throw new IllegalStateException("No empty (non-free) slots available in the inventory.");
+        }
+    }
+
+    /**
+     * Automatically finds the first empty (non-free) slot and places a DynamicDisplay there.
+     */
+    public void addDisplay(DynamicDisplay display){
+        int emptySlot = findFirstEmptySlot();
+        if (emptySlot >= 0) {
+            inventory.setItem(emptySlot, display.getItemStack());
+            display.startPeriodicUpdates(1);
         } else {
             throw new IllegalStateException("No empty (non-free) slots available in the inventory.");
         }

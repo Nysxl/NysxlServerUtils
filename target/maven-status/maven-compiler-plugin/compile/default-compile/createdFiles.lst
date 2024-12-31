@@ -4,8 +4,10 @@ org\Nysxl\InventoryManager\DynamicInventoryHandler$InventoryEventListener.class
 org\Nysxl\InventoryManager\DynamicButton$ClickAction.class
 org\Nysxl\Components\Profiles\ProfileViewer.class
 org\Nysxl\InventoryManager\DynamicButton$ClickAction$1.class
+org\Nysxl\InventoryManager\DynamicDisplay.class
 org\Nysxl\InventoryManager\DynamicInventoryHandler$SlotAction$2.class
 org\Nysxl\CommandManager\CommandRegistry$CommandBuilder$SubCommandHandler.class
+org\Nysxl\InventoryManager\DynamicDisplay$Builder.class
 org\Nysxl\Components\PermissionChecker\DynamicPermissionCheckCommand$Requests.class
 org\Nysxl\NysxlServerUtils.class
 org\Nysxl\CommandManager\CommandRegistry$CommandBuilder$CommandCheckWithArgs.class
@@ -17,6 +19,7 @@ org\Nysxl\CommandManager\CommandRegistry$CommandBuilder$ArgumentParsers.class
 org\Nysxl\CommandManager\DynamicCommand.class
 org\Nysxl\CommandManager\CommandRegistry$CommandBuilder.class
 org\Nysxl\InventoryManager\DynamicInventoryHandler$SlotAction$1.class
+org\Nysxl\InventoryManager\DynamicDisplay$1.class
 org\Nysxl\Utils\PlaceholderAPI.class
 org\Nysxl\InventoryManager\DynamicConfigManager.class
 org\Nysxl\InventoryManager\DynamicInventoryHandler.class

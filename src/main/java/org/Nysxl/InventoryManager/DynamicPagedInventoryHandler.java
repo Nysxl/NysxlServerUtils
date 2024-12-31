@@ -20,7 +20,8 @@ import java.util.stream.IntStream;
 public class DynamicPagedInventoryHandler extends DynamicInventoryHandler {
 
     // Core storage
-    private final Set<DynamicButton> allButtons = ConcurrentHashMap.newKeySet();
+    private final Set<DynamicButton> allButtons = Collections.synchronizedSet(new LinkedHashSet<>());
+    private final Set<DynamicDisplay> allDisplays = Collections.synchronizedSet(new LinkedHashSet<>());
 
     // Navigation state
     private volatile int currentPage = 0;
@@ -367,9 +368,22 @@ public class DynamicPagedInventoryHandler extends DynamicInventoryHandler {
         openPage(player, currentPage);
     }
 
+    public void addDisplay(DynamicDisplay display, Player player) {
+        allDisplays.add(display);
+        openPage(player, currentPage);
+    }
+
     public void removeButton(DynamicButton button, Player player) {
         allButtons.remove(button);
         invalidateSearchCache();
+        if (currentPage * pageCapacity >= allButtons.size() && currentPage > 0) {
+            currentPage--;
+        }
+        openPage(player, currentPage);
+    }
+
+    public void removeDisplay(DynamicDisplay display, Player player){
+        allDisplays.remove(display);
         if (currentPage * pageCapacity >= allButtons.size() && currentPage > 0) {
             currentPage--;
         }
