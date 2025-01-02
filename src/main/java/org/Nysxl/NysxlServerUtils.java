@@ -4,9 +4,10 @@ import net.milkbowl.vault.economy.Economy;
 import org.Nysxl.CommandManager.CommandRegistry;
 import org.Nysxl.Components.PermissionChecker.DynamicPermissionCheckCommand;
 import org.Nysxl.Components.Profiles.ProfileViewer;
-import org.Nysxl.InventoryManager.DynamicConfigManager;
+import org.Nysxl.DynamicConfigManager.DynamicConfigManager;
 import org.Nysxl.InventoryManager.DynamicInventoryHandler;
 import org.Nysxl.Utils.Economy.EconomyManager;
+import org.Nysxl.Utils.StringBuildHandler;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -190,7 +191,6 @@ public class NysxlServerUtils extends JavaPlugin {
         DynamicPermissionCheckCommand permissionHandler = new DynamicPermissionCheckCommand(porfileConfigManager);
         permissionHandler.register(this);
     }
-
 
     //return the profile config manager
     public static DynamicConfigManager getPorfileConfigManager() {

@@ -4,14 +4,15 @@ import org.Nysxl.NysxlServerUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -28,6 +29,7 @@ import java.util.function.Predicate;
 public class DynamicInventoryHandler {
 
     private static final Map<Player, DynamicInventoryHandler> activeInventories = new HashMap<>();
+    private static Map<UUID, BukkitRunnable> cleanupTasks = new HashMap<>();
 
     private final Inventory inventory;
     private final Runnable onClose;
@@ -195,6 +197,10 @@ public class DynamicInventoryHandler {
         }
     }
 
+    public Consumer<InventoryClickEvent> getClickAction() {
+        return null;
+    }
+
     /**
      * Automatically finds the first empty (non-free) slot and places a DynamicDisplay there.
      */
@@ -210,8 +216,8 @@ public class DynamicInventoryHandler {
 
     private int findFirstEmptySlot() {
         for (int i = 0; i < inventory.getSize(); i++) {
-            // If the slot is free, skip
-            if (isSlotFree(i)) {
+            // If the slot is free or reserved, skip
+            if (isSlotFree(i) || slotActions.containsKey(i)) {
                 continue;
             }
             // If there's no item, we can use it
@@ -285,21 +291,50 @@ public class DynamicInventoryHandler {
     // Event Handling
     // ------------------------------------------------------------------------
     private void handleClickEvent(InventoryClickEvent event) {
-        // If entire SHIFT-click is disabled
-        if (disableAllShiftClick && event.isShiftClick()) {
-            event.setCancelled(true);
-            return;
-        }
+        // Get the player and the inventories involved
+        HumanEntity player = event.getWhoClicked();
+        Inventory clickedInventory = event.getClickedInventory();
 
+        // Get the item on the player's cursor
+        ItemStack cursorItem = event.getCursor();
+
+        // Get the slot being clicked
         int slot = event.getSlot();
-        // If the slot is free, we do NOT cancel or run plugin code
-        if (isSlotFree(slot)) {
-            // Let them move items in/out
+
+        // Check if the click is in the player's own inventory, allow it
+        if (clickedInventory != null && clickedInventory.equals(player.getInventory())) {
             return;
         }
 
-        // For non-free slots, we typically cancel the movement so plugin logic can apply
+        // Check if the slot is free
+        if (isSlotFree(slot)) {
+            // Allow the item to be placed in the free slot
+            event.setCancelled(false);
+            return;
+        }
+
+        // Cancel the event to prevent unauthorized movement
         event.setCancelled(true);
+
+        // If there's an item on the cursor, ensure it remains on the cursor
+        if (cursorItem != null && cursorItem.getType() != Material.AIR) {
+            Bukkit.getScheduler().runTaskLater(NysxlServerUtils.getInstance(), () -> {
+                // Return the item back to the cursor
+                player.setItemOnCursor(cursorItem);
+            }, 1L);
+        }
+
+        if (event.isShiftClick()) {
+            // Find the first available free slot in the DynamicInventory
+            int freeSlot = findFirstFreeSlot(event.getInventory());
+            if (freeSlot >= 0) {
+                // Move the item to the first available free slot
+                ItemStack item = event.getCurrentItem();
+                inventory.setItem(freeSlot, item);
+                clickedInventory.setItem(slot, null);
+            }
+            return;
+        }
 
         // Check new approach first
         SlotAction newAction = slotActions.get(slot);
@@ -315,10 +350,41 @@ public class DynamicInventoryHandler {
         }
     }
 
+    //checks the inventory and finds the first free slot that matches freeslots
+    private int findFirstFreeSlot(Inventory inventory) {
+        for (int i = 0; i < inventory.getSize(); i++) {
+            if (isSlotFree(i)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+
     // ------------------------------------------------------------------------
     // InventoryEventListener
     // ------------------------------------------------------------------------
     public static class InventoryEventListener implements Listener {
+
+        @EventHandler
+        public void onInventoryOpen(InventoryOpenEvent event) {
+            if (!(event.getPlayer() instanceof Player player)) {
+                return;
+            }
+
+            BukkitRunnable cleanupTask = cleanupTasks.remove(player);
+            if (cleanupTask != null) {
+                cleanupTask.cancel();
+            }
+        }
+
+
+        @EventHandler
+        public void onInventoryDrag(InventoryDragEvent event) {
+            // Your conditions to determine if the drag should be cancelled
+            event.setCancelled(true);
+        }
+
 
         @EventHandler
         public void onInventoryClick(InventoryClickEvent event) {
@@ -345,9 +411,21 @@ public class DynamicInventoryHandler {
                 return;
             }
 
-            DynamicInventoryHandler handler = activeInventories.remove(player);
-            if (handler != null && handler.onClose != null) {
-                handler.onClose.run();
+            DynamicInventoryHandler handler = activeInventories.get(player);
+            if (handler != null) {
+                BukkitRunnable cleanupTask = new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        if (!player.getOpenInventory().getTopInventory().equals(handler.getInventory())) {
+                            activeInventories.remove(player);
+                            if (handler.onClose != null) {
+                                handler.onClose.run();
+                            }
+                        }
+                    }
+                };
+                cleanupTask.runTaskLater(NysxlServerUtils.getInstance(), 1200L); // 1200 ticks = 1 minute
+                cleanupTasks.put(player.getUniqueId(), cleanupTask);
             }
         }
     }
@@ -506,5 +584,13 @@ public class DynamicInventoryHandler {
                 }
             });
         }
+    }
+
+    public static void addToCleanup(UUID uuid, BukkitRunnable cleanupTasks) {
+        DynamicInventoryHandler.cleanupTasks.put(uuid, cleanupTasks);
+    }
+
+    public static void removeFromCleanup(UUID uuid) {
+        DynamicInventoryHandler.cleanupTasks.remove(uuid);
     }
 }

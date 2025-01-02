@@ -2,8 +2,9 @@ package org.Nysxl.Components.PermissionChecker;
 
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
+import org.Nysxl.DynamicConfigManager.DynamicConfigManager;
 import org.Nysxl.InventoryManager.DynamicButton;
-import org.Nysxl.InventoryManager.DynamicConfigManager;
+
 import org.Nysxl.InventoryManager.DynamicPagedInventoryHandler;
 import org.Nysxl.NysxlServerUtils;
 import org.Nysxl.Utils.TextComponentBuilder;
@@ -150,7 +151,6 @@ public class DynamicPermissionCheckCommand implements Listener {
             ((Player) event.getWhoClicked()).sendMessage(ChatColor.GREEN + "Request removed.");
             saveActiveRequests(NysxlServerUtils.getPorfileConfigManager());
         }));
-
 
         gui.addButton(button, player);
     }

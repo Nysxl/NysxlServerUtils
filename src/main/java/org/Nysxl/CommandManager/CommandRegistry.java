@@ -153,17 +153,11 @@ public class CommandRegistry {
         // --------------------------------------------------------------------
         // Success/Fail handling
         // --------------------------------------------------------------------
-        /**
-         * Called if the command passes all checks and does not throw an exception.
-         */
         public CommandBuilder onSuccess(BiConsumer<CommandSender, String[]> action) {
             this.postSuccessActions.add(action);
             return this;
         }
 
-        /**
-         * Called if any check fails or if an exception occurs during logic.
-         */
         public CommandBuilder onFail(BiConsumer<CommandSender, String[]> action) {
             this.postFailActions.add(action);
             return this;
@@ -207,6 +201,29 @@ public class CommandRegistry {
             boolean check(CommandSender sender, String[] args);
         }
 
+        public CommandBuilder checkWithArgs(Predicate<String[]> condition, String failureMessage) {
+            checksWithArgs.add((sender, realArgs) -> {
+                if (!condition.test(realArgs)) {
+                    sender.sendMessage(failureMessage);
+                    return false;
+                }
+                return true;
+            });
+            return this;
+        }
+
+        public CommandBuilder requireArgs(int minArgs, int maxArgs, String failureMessage) {
+            return checkWithArgs(args -> args.length >= minArgs && args.length <= maxArgs, failureMessage);
+        }
+
+        public CommandBuilder requireArgs(int numArgs, String failureMessage) {
+            return requireArgs(numArgs, numArgs, failureMessage);
+        }
+
+        public CommandBuilder requireArgs(int numArgs) {
+            return requireArgs(numArgs, "Invalid number of arguments.");
+        }
+
         public CommandBuilder checkWithArgs(BiConsumer<CommandSender, String[]> logic, String failureMessage) {
             checksWithArgs.add((sender, realArgs) -> {
                 try {
@@ -236,6 +253,9 @@ public class CommandRegistry {
         // --------------------------------------------------------------------
         public CommandBuilder onSubCommand(String subCommand, SubCommandHandler handler) {
             subCommands.put(subCommand.toLowerCase(), handler);
+            if (!handler.getDescription().isEmpty()) {
+                subCommandDescriptions.put(subCommand.toLowerCase(), handler.getDescription());
+            }
             return this;
         }
 
@@ -255,12 +275,20 @@ public class CommandRegistry {
             onSubCommand("help", new SubCommandHandler(
                     Collections.emptyList(),
                     (sender, parsedArgs) -> {
-                        sender.sendMessage(ChatColor.GOLD + "Available Subcommands:");
-                        subCommandDescriptions.forEach((name, desc) -> {
-                            sender.sendMessage(ChatColor.YELLOW + "/" + command.getName() + " " + name + ": " + desc);
+                        sender.sendMessage(ChatColor.GOLD + "Available Commands:");
+
+                        // Collect all command help info including nested subcommands
+                        Map<String, String> allCommands = new HashMap<>();
+                        subCommands.forEach((name, handler) -> {
+                            allCommands.putAll(handler.getHelpInfo("/" + command.getName() + " " + name));
+                        });
+
+                        // Display all commands with their descriptions
+                        allCommands.forEach((cmd, desc) -> {
+                            sender.sendMessage(ChatColor.YELLOW + cmd + ": " + desc);
                         });
                     }
-            ));
+            ).withDescription("Shows this help message"));
             return this;
         }
 
@@ -279,7 +307,7 @@ public class CommandRegistry {
                     return true;
                 }
 
-                // 2) Permission check
+                // 2) Permission check for base command
                 if (requiredPermission != null && !sender.hasPermission(requiredPermission)) {
                     sender.sendMessage(noPermissionMessage);
                     runFail(sender, args);
@@ -398,11 +426,6 @@ public class CommandRegistry {
         // --------------------------------------------------------------------
         // Utility Methods
         // --------------------------------------------------------------------
-        //
-        //  You can easily add more or tweak these to accept arguments if needed.
-        // --------------------------------------------------------------------
-
-        // 1) Spawning standard mobs
         public CommandBuilder spawnMobOnSuccess(EntityType type, int amount) {
             return onSuccess((sender, args) -> {
                 if (sender instanceof Player player) {
@@ -414,20 +437,17 @@ public class CommandRegistry {
         }
 
         public CommandBuilder spawnMobOnFail(EntityType type, int amount) {
-            return onFail((sender, args) -> {
-                if (sender instanceof Player player) {
-                    for (int i = 0; i < amount; i++) {
-                        player.getWorld().spawnEntity(player.getLocation(), type);
-                    }
-                }
-            });
+            return
+
+                    onFail((sender, args) -> {
+                        if (sender instanceof Player player) {
+                            for (int i = 0; i < amount; i++) {
+                                player.getWorld().spawnEntity(player.getLocation(), type);
+                            }
+                        }
+                    });
         }
 
-        // 2) Spawning "custom" mobs with a Consumer<Entity> to add custom meta
-        /**
-         * Spawns 'amount' of the given type, then applies the provided consumer
-         * to each spawned entity (e.g. set custom name, set attributes, etc.).
-         */
         public CommandBuilder spawnCustomMobOnSuccess(EntityType type, int amount, Consumer<Entity> customizer) {
             return onSuccess((sender, args) -> {
                 if (sender instanceof Player player) {
@@ -450,7 +470,6 @@ public class CommandRegistry {
             });
         }
 
-        // 3) Placing blocks
         public CommandBuilder placeBlockOnSuccess(Material material, int offsetY) {
             return onSuccess((sender, args) -> {
                 if (sender instanceof Player player) {
@@ -467,7 +486,6 @@ public class CommandRegistry {
             });
         }
 
-        // 4) Playing sounds
         public CommandBuilder playSoundOnSuccess(Sound sound, float volume, float pitch) {
             return onSuccess((sender, args) -> {
                 if (sender instanceof Player player) {
@@ -484,7 +502,6 @@ public class CommandRegistry {
             });
         }
 
-        // 5) Running commands as console
         public CommandBuilder runAsConsoleOnSuccess(String consoleCommand) {
             return onSuccess((sender, args) -> {
                 new BukkitRunnable() {
@@ -507,7 +524,6 @@ public class CommandRegistry {
             });
         }
 
-        // 6) Temporarily run logic as OP (if not already OP)
         public CommandBuilder runAsOpOnSuccess(BiConsumer<Player, String[]> logic) {
             return onSuccess((sender, args) -> {
                 if (sender instanceof Player player) {
@@ -544,15 +560,10 @@ public class CommandRegistry {
             });
         }
 
-        // 7) Spawn or drop items
-        /**
-         * Give the player an ItemStack on success, or drop it at their feet if inventory is full.
-         */
         public CommandBuilder giveItemOnSuccess(ItemStack itemStack) {
             return onSuccess((sender, args) -> {
                 if (sender instanceof Player player) {
                     HashMap<Integer, ItemStack> leftovers = player.getInventory().addItem(itemStack);
-                    // If inventory is full, drop the leftovers at the player's location
                     leftovers.values().forEach(left ->
                             player.getWorld().dropItem(player.getLocation(), left)
                     );
@@ -571,9 +582,6 @@ public class CommandRegistry {
             });
         }
 
-        /**
-         * Directly drop an item at the player's location on success (no attempt to add to inventory).
-         */
         public CommandBuilder dropItemOnSuccess(ItemStack itemStack) {
             return onSuccess((sender, args) -> {
                 if (sender instanceof Player player) {
@@ -590,9 +598,6 @@ public class CommandRegistry {
             });
         }
 
-        // --------------------------------------------------------------------
-        // Argument Parsers
-        // --------------------------------------------------------------------
         public static class ArgumentParsers {
             public static final Function<String, Integer> INTEGER = arg -> {
                 try {
@@ -614,11 +619,15 @@ public class CommandRegistry {
         }
 
         // --------------------------------------------------------------------
-        // SubCommandHandler
+        // Enhanced SubCommandHandler with Permissions
         // --------------------------------------------------------------------
         public static class SubCommandHandler {
             private final List<Function<String, ?>> argumentParsers;
             private final BiConsumer<CommandSender, List<Object>> logic;
+            private String permission = null;
+            private String noPermissionMessage = ChatColor.RED + "You do not have permission to use this subcommand.";
+            private final Map<String, SubCommandHandler> subCommands = new HashMap<>();
+            private String description = "";
 
             public SubCommandHandler(
                     List<Function<String, ?>> argumentParsers,
@@ -628,17 +637,72 @@ public class CommandRegistry {
                 this.logic = logic;
             }
 
+            public SubCommandHandler withPermission(String permission) {
+                this.permission = permission;
+                return this;
+            }
+
+            public SubCommandHandler withNoPermissionMessage(String message) {
+                this.noPermissionMessage = message;
+                return this;
+            }
+
+            public SubCommandHandler withDescription(String description) {
+                this.description = description;
+                return this;
+            }
+
+            public SubCommandHandler addSubCommand(String name, SubCommandHandler handler) {
+                subCommands.put(name.toLowerCase(), handler);
+                return this;
+            }
+
+            public String getDescription() {
+                return description;
+            }
+
             public void handle(CommandSender sender, String[] args) {
+                // First check permission for this subcommand
+                if (permission != null && !sender.hasPermission(permission)) {
+                    sender.sendMessage(noPermissionMessage);
+                    return;
+                }
+
+                // Check for nested subcommands first
+                if (!subCommands.isEmpty() && args.length > 0) {
+                    SubCommandHandler nestedHandler = subCommands.get(args[0].toLowerCase());
+                    if (nestedHandler != null) {
+                        nestedHandler.handle(sender, Arrays.copyOfRange(args, 1, args.length));
+                        return;
+                    }
+                }
+
+                // If no nested subcommands matched, process arguments for this command
                 if (args.length != argumentParsers.size()) {
                     throw new IllegalArgumentException(
                             "Expected " + argumentParsers.size() + " arguments, but got " + args.length
                     );
                 }
+
                 List<Object> parsed = new ArrayList<>();
                 for (int i = 0; i < args.length; i++) {
                     parsed.add(argumentParsers.get(i).apply(args[i]));
                 }
                 logic.accept(sender, parsed);
+            }
+
+            public Map<String, String> getHelpInfo(String prefix) {
+                Map<String, String> help = new HashMap<>();
+                if (!description.isEmpty()) {
+                    help.put(prefix, description + (permission != null ? " (Permission: " + permission + ")" : ""));
+                }
+
+                // Add help for all subcommands
+                subCommands.forEach((name, handler) -> {
+                    help.putAll(handler.getHelpInfo(prefix + " " + name));
+                });
+
+                return help;
             }
         }
     }

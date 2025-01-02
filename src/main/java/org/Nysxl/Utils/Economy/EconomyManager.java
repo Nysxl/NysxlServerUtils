@@ -1,6 +1,7 @@
 package org.Nysxl.Utils.Economy;
 
-import org.Nysxl.InventoryManager.DynamicConfigManager;
+
+import org.Nysxl.DynamicConfigManager.DynamicConfigManager;
 import org.Nysxl.NysxlServerUtils;
 import org.bukkit.OfflinePlayer;
 

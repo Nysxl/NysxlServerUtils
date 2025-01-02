@@ -1,11 +1,13 @@
 package org.Nysxl.InventoryManager;
 
+import org.Nysxl.NysxlServerUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -21,7 +23,9 @@ public class DynamicPagedInventoryHandler extends DynamicInventoryHandler {
 
     // Core storage
     private final Set<DynamicButton> allButtons = Collections.synchronizedSet(new LinkedHashSet<>());
+    private final HashMap<Integer, DynamicButton> persistentButtons = new HashMap<>();
     private final Set<DynamicDisplay> allDisplays = Collections.synchronizedSet(new LinkedHashSet<>());
+    private final Set<UUID> closedInventories = ConcurrentHashMap.newKeySet();
 
     // Navigation state
     private volatile int currentPage = 0;
@@ -281,26 +285,39 @@ public class DynamicPagedInventoryHandler extends DynamicInventoryHandler {
             setButton(availableSlots.get(itemCursor++), source.get(i));
         }
 
+        // set all persistent buttons
+        persistentButtons.forEach(this::setButton);
+
         updateNavigationButtons(player, pageIndex, source.size(), availableSlots.size());
     }
 
+    // Modify updateNavigationButtons to dynamically calculate if next/prev page buttons are needed
     private void updateNavigationButtons(Player player, int pageIndex, int totalItems, int availableSlots) {
+        if (nextPageSlot >= 0) {
+            reservedSlots.remove(nextPageSlot);
+        }
+        if (prevPageSlot >= 0) {
+            reservedSlots.remove(prevPageSlot);
+        }
+
         if (nextPageSlot >= 0 && pageIndex * pageCapacity + availableSlots < totalItems) {
             setButton(nextPageSlot, createNavButton(Material.ARROW, "§aNext Page",
                     e -> openPage(player, pageIndex + 1)));
+            reservedSlots.add(nextPageSlot);
         }
 
         if (prevPageSlot >= 0 && pageIndex > 0) {
             setButton(prevPageSlot, createNavButton(Material.ARROW, "§cPrevious Page",
                     e -> openPage(player, pageIndex - 1)));
+            reservedSlots.add(prevPageSlot);
         }
 
         if (searchEnabled && searchSlot >= 0) {
             setButton(searchSlot, createNavButton(Material.NAME_TAG, "§eSearch",
                     e -> promptPlayerForSearch(player)));
+            reservedSlots.add(searchSlot);
         }
     }
-
     private DynamicButton createNavButton(Material material, String title,
                                           Consumer<InventoryClickEvent> eventConsumer) {
         return DynamicButton.builder()
@@ -362,23 +379,57 @@ public class DynamicPagedInventoryHandler extends DynamicInventoryHandler {
         player.sendMessage("§ePlease type your search query in chat. Type 'cancel' to abort.");
     }
 
+    @Override
+    public void setButton(int slot, DynamicButton button) {
+        if (isSlotFree(slot)) {
+            return;
+        }
+        clearItem(slot);
+        getInventory().setItem(slot, button.getItemStack());
+        super.setButton(slot, button);
+    }
+
+    public void storePersistentButton(int slot, DynamicButton button) {
+        persistentButtons.put(slot, button);
+        setButton(slot, button);
+    }
+
+    public void removeButton(DynamicButton button, Player player) {
+        int slot = findSlotForButton(button);
+        if (slot >= 0) {
+            clearItem(slot);
+            reservedSlots.remove(slot); // Remove from reserved slots
+        }
+        allButtons.remove(button);
+        if (currentPage * pageCapacity >= allButtons.size() && currentPage > 0) {
+            currentPage--;
+        }
+        openPage(player, currentPage);
+    }
+
     public void addButton(DynamicButton button, Player player) {
-        allButtons.add(button);
+        int emptySlot = findFirstUnreservedSlot();
+        if (emptySlot >= 0) {
+            setButton(emptySlot, button);
+            allButtons.add(button); // Ensure the button is added to the core storage
+        } else {
+            player.sendMessage("No unreserved slot available to add the button.");
+        }
         invalidateSearchCache();
         openPage(player, currentPage);
+    }
+
+    private int findFirstUnreservedSlot() {
+        for (int i = 0; i < getInventory().getSize(); i++) {
+            if (getInventory().getItem(i) == null && !reservedSlots.contains(i)) {
+                return i;
+            }
+        }
+        return -1; // No unreserved slot found
     }
 
     public void addDisplay(DynamicDisplay display, Player player) {
         allDisplays.add(display);
-        openPage(player, currentPage);
-    }
-
-    public void removeButton(DynamicButton button, Player player) {
-        allButtons.remove(button);
-        invalidateSearchCache();
-        if (currentPage * pageCapacity >= allButtons.size() && currentPage > 0) {
-            currentPage--;
-        }
         openPage(player, currentPage);
     }
 
@@ -405,18 +456,13 @@ public class DynamicPagedInventoryHandler extends DynamicInventoryHandler {
         System.out.println("Animations: " + animations.size());
     }
 
-    public void cleanup(Player player) {
-        awaitingSearchMap.remove(player.getUniqueId());
-        if (refreshTask != null) {
-            refreshTask.cancel();
+    // Helper method to find the slot for a given button
+    private int findSlotForButton(DynamicButton button) {
+        for (int i = 0; i < getInventory().getSize(); i++) {
+            if (getInventory().getItem(i) != null && getInventory().getItem(i).equals(button.getItemStack())) {
+                return i;
+            }
         }
-        clearAllButtons(player);
-        if (onClose != null) {
-            onClose.run();
-        }
-    }
-
-    protected Runnable getOnClose() {
-        return this.onClose;
+        return -1;
     }
 }
