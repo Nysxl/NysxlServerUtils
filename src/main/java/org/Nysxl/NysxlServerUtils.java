@@ -84,7 +84,7 @@ public class NysxlServerUtils extends JavaPlugin {
                 .setPlayerExecutor((player, context) -> {
                     try {
                         double newTax = Double.parseDouble(context.getArgs().get(0));
-                        if (newTax < 0) {
+                        if(newTax < 0) {
                             player.sendMessage(ChatColor.RED + "Tax amount must be greater than 0.");
                             return;
                         }
@@ -104,7 +104,7 @@ public class NysxlServerUtils extends JavaPlugin {
                 .setPlayerExecutor((player, context) -> {
                     try {
                         double newTax = Double.parseDouble(context.getArgs().get(0));
-                        if (newTax < 0 || newTax > 1) {
+                        if(newTax < 0 || newTax > 1) {
                             player.sendMessage(ChatColor.RED + "Tax percentage must be between 0 and 1.");
                             return;
                         }
@@ -123,7 +123,7 @@ public class NysxlServerUtils extends JavaPlugin {
         // Register subcommands
         taxCommand.addSubCommand(getSubCommand)
                 .addSubCommand(setSubCommand)
-                .register(this);
+                .register();
     }
 
     // Return the profile config manager
