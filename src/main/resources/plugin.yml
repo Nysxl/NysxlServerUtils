@@ -6,3 +6,9 @@ api-version: 1.20
 softdepend:
   - PlaceholderAPI
   - Vault
+commands:
+  tax:
+    description: Manage taxes
+    usage: /tax <get|set> [value]
+    permission: your.permission.node
+    permission-message: You do not have permission to execute this command.

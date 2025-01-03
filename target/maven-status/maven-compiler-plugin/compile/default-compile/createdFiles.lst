@@ -1,9 +1,8 @@
-org\Nysxl\NysxlServerUtils$2.class
+org\Nysxl\CommandManager\PlayerCommandExecutor.class
 org\Nysxl\Utils\TextComponentBuilder.class
 org\Nysxl\InventoryManager\DynamicInventoryHandler$InventoryEventListener.class
 org\Nysxl\InventoryManager\DynamicButton$ClickAction.class
 org\Nysxl\InventoryManager\DynamicButton$ClickAction$1.class
-org\Nysxl\CommandManager\SubCommand.class
 org\Nysxl\InventoryManager\DynamicDisplay.class
 org\Nysxl\InventoryManager\DynamicInventoryHandler$SlotAction$2.class
 org\Nysxl\InventoryManager\DynamicDisplay$Builder.class
@@ -12,13 +11,10 @@ org\Nysxl\NysxlServerUtils.class
 org\Nysxl\Utils\StringBuildHandler$Builder.class
 org\Nysxl\InventoryManager\DynamicPagedInventoryHandler$1.class
 org\Nysxl\CommandManager\CommandBuilder$Usage.class
-org\Nysxl\NysxlServerUtils$1.class
 org\Nysxl\InventoryManager\DynamicPagedInventoryHandler$InventorySection.class
 org\Nysxl\InventoryManager\DynamicButton.class
-org\Nysxl\CommandManager\DynamicCommandRegistrar.class
 org\Nysxl\InventoryManager\DynamicInventoryHandler$SlotAction.class
 org\Nysxl\CommandManager\CommandBuilder$1.class
-org\Nysxl\NysxlServerUtils$3.class
 org\Nysxl\DynamicConfigManager\DynamicConfigManager.class
 org\Nysxl\InventoryManager\DynamicInventoryHandler$SlotAction$1.class
 org\Nysxl\InventoryManager\DynamicDisplay$1.class
@@ -31,6 +27,7 @@ org\Nysxl\InventoryManager\DynamicButton$Builder.class
 org\Nysxl\CommandManager\SubCommandBuilder.class
 org\Nysxl\CommandManager\CommandBuilder.class
 org\Nysxl\Utils\Economy\EconomyManager.class
+org\Nysxl\CommandManager\ConsoleCommandExecutor.class
 org\Nysxl\InventoryManager\DynamicPagedInventoryHandler$RefreshableSlot.class
 org\Nysxl\CommandManager\CommandContext.class
 org\Nysxl\InventoryManager\DynamicButton$ClickAction$2.class

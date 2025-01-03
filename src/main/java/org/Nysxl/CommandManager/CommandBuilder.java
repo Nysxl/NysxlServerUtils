@@ -1,37 +1,39 @@
 package org.Nysxl.CommandManager;
 
+import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 
-public class CommandBuilder {
-    private String name; // Command name
-    private CommandExecutor executor; // Command executor logic
-    private TabCompleter tabCompleter = (sender, command, alias, args) -> List.of(); // Optional: Tab completer
-    private Predicate<CommandContext> requirement = context -> true; // Optional: Requirement predicate
-    private Consumer<CommandContext> onSucceed = context -> {}; // Optional: Action on success
-    private Consumer<CommandContext> onFail = context -> {}; // Optional: Action on failure
-    private String permissionRequiredMessage = "You do not have permission to execute this command."; // Optional: Permission required message
-    private String usageMessage = "Incorrect usage of the command."; // Optional: Usage message
-    private List<String> permissions = new ArrayList<>(); // Optional: List of permissions
-    private boolean acceptsCmd = false; // Optional: Allow execution from console
+public class CommandBuilder implements CommandExecutor, TabCompleter {
+    private JavaPlugin plugin;
+    private String name;
+    private PlayerCommandExecutor playerExecutor;
+    private ConsoleCommandExecutor consoleExecutor;
+    private TabCompleter tabCompleter = (sender, command, alias, args) -> List.of();
+    private Predicate<CommandContext> requirement = context -> true;
+    private Consumer<CommandContext> onSucceed = context -> {};
+    private Consumer<CommandContext> onFail = context -> {};
+    private String permissionRequiredMessage = "You do not have permission to execute this command.";
+    private String usageMessage = "Incorrect usage of the command.";
+    private List<String> permissions = new ArrayList<>();
+    private String playerErrorMessage = "Only players can use this command.";
+    private String consoleErrorMessage = "This command cannot be executed from the console.";
     private final List<SubCommandBuilder> subCommands = new ArrayList<>();
     private final List<Usage> usages = new ArrayList<>();
-    private JavaPlugin plugin;
+    private boolean debugEnabled = false;
+    private Sound successSound = null;
+    private Sound failSound = null;
 
-    // Inner class to represent expected arguments in a usage
-    private static class Usage {
+    static class Usage {
         private final int position;
         private final Class<?> type;
         private final String tabComplete;
@@ -55,83 +57,102 @@ public class CommandBuilder {
         }
     }
 
-    // Sets the name of the command
+    public CommandBuilder(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
     public CommandBuilder setName(String name) {
         this.name = name;
         return this;
     }
 
-    // Sets the executor logic for the command
-    public CommandBuilder setExecutor(CommandExecutor executor) {
-        this.executor = executor;
+    public CommandBuilder setPlayerExecutor(PlayerCommandExecutor playerExecutor) {
+        this.playerExecutor = playerExecutor;
         return this;
     }
 
-    // Adds a subcommand to this command
+    public CommandBuilder setConsoleExecutor(ConsoleCommandExecutor consoleExecutor) {
+        this.consoleExecutor = consoleExecutor;
+        return this;
+    }
+
     public CommandBuilder addSubCommand(SubCommandBuilder subCommand) {
         this.subCommands.add(subCommand);
         return this;
     }
 
-    // Sets a requirement predicate that must be met to execute the command (Optional)
     public CommandBuilder setRequirement(Predicate<CommandContext> requirement) {
         this.requirement = requirement;
         return this;
     }
 
-    // Sets the action to perform when the command succeeds (Optional)
     public CommandBuilder onSucceed(Consumer<CommandContext> onSucceed) {
         this.onSucceed = onSucceed;
         return this;
     }
 
-    // Sets the action to perform when the command fails (Optional)
     public CommandBuilder onFail(Consumer<CommandContext> onFail) {
         this.onFail = onFail;
         return this;
     }
 
-    // Sets the message to display when the user lacks permission (Optional)
     public CommandBuilder setPermissionRequiredMessage(String message) {
         this.permissionRequiredMessage = message;
         return this;
     }
 
-    // Sets the usage message for the command (Optional)
     public CommandBuilder setUsageMessage(String message) {
         this.usageMessage = message;
         return this;
     }
 
-    // Adds a permission required to execute the command (Optional)
     public CommandBuilder addPermission(String permission) {
         this.permissions.add(permission);
         return this;
     }
 
-    // Allows the command to be executed from the console (Optional)
-    public CommandBuilder acceptsCmd() {
-        this.acceptsCmd = true;
-        return this;
-    }
-
-    // Sets expected arguments for the command
     public CommandBuilder usage(int position, Class<?> type, String tabComplete) {
         usages.add(new Usage(position, type, tabComplete));
         return this;
     }
 
-    // Sets the tab completer for the command
     public CommandBuilder setTabCompleter(TabCompleter tabCompleter) {
         this.tabCompleter = tabCompleter;
         return this;
     }
 
-    // Builds and returns the command
+    public CommandBuilder setPlayerErrorMessage(String message) {
+        this.playerErrorMessage = message;
+        return this;
+    }
+
+    public CommandBuilder setConsoleErrorMessage(String message) {
+        this.consoleErrorMessage = message;
+        return this;
+    }
+
+    public CommandBuilder setDebugEnabled(boolean debugEnabled) {
+        this.debugEnabled = debugEnabled;
+        return this;
+    }
+
+    public CommandBuilder setSuccessSound(Sound successSound) {
+        this.successSound = successSound;
+        return this;
+    }
+
+    public CommandBuilder setFailSound(Sound failSound) {
+        this.failSound = failSound;
+        return this;
+    }
+
     public Command build() {
         Command command = new Command(name) {
             @Override
             public boolean execute(CommandSender sender, String label, String[] args) {
+                if (debugEnabled) {
+                    plugin.getLogger().log(Level.INFO, "Executing command with context: " + Arrays.toString(args));
+                }
                 CommandContext context = new CommandContext(sender, label, Arrays.asList(args), new HashMap<>());
                 CommandBuilder.this.execute(context);
                 return true;
@@ -139,146 +160,167 @@ public class CommandBuilder {
 
             @Override
             public List<String> tabComplete(CommandSender sender, String alias, String[] args) {
+                if (debugEnabled) {
+                    plugin.getLogger().log(Level.INFO, "Tab completing with context: " + Arrays.toString(args));
+                }
                 return CommandBuilder.this.tabComplete(sender, this, alias, args);
             }
         };
 
-        // Register the command with the plugin
-        plugin.getCommand(name).setExecutor((CommandExecutor) command);
-        plugin.getCommand(name).setTabCompleter((TabCompleter) command);
-
-        // Register the command in the plugin.yml file
-        registerCommandInPluginYml();
+        if (plugin.getCommand(name) != null) {
+            plugin.getCommand(name).setExecutor(this);
+            plugin.getCommand(name).setTabCompleter(this);
+        } else {
+            plugin.getLogger().log(Level.SEVERE, "Command not found in plugin.yml: " + name);
+        }
 
         return command;
     }
 
-    // Executes the command with the given context
     public void execute(CommandContext context) {
         CommandSender sender = context.getSender();
 
-        // Check if sender is a player unless command accepts console
-        if (!acceptsCmd && !(sender instanceof Player)) {
-            sender.sendMessage("Only players can use this command.");
+        if (debugEnabled) {
+            plugin.getLogger().log(Level.INFO, "Executing command with context: " + context.toString());
+        }
+
+        List<String> args = new ArrayList<>(context.getArgs());
+
+        if (args.isEmpty()) {
+            sender.sendMessage(usageMessage);
+            onFail.accept(context);
+            playFailSound(sender);
+            if (debugEnabled) {
+                plugin.getLogger().log(Level.INFO, "No arguments provided, showing usage message.");
+            }
             return;
         }
 
-        // Check permissions
-        for (String permission : permissions) {
-            if (!sender.hasPermission(permission)) {
-                sender.sendMessage(permissionRequiredMessage);
-                onFail.accept(context);
-                return;
+        // Recursively execute subcommands
+        executeSubCommand(sender, context, args, this);
+    }
+
+    private void executeSubCommand(CommandSender sender, CommandContext context, List<String> args, CommandBuilder commandBuilder) {
+        if (args.isEmpty()) {
+            // Handle case where no subcommand is found and no more arguments are provided
+            if (sender instanceof Player && commandBuilder.playerExecutor != null) {
+                commandBuilder.playerExecutor.execute((Player) sender, context);
+                commandBuilder.onSucceed.accept(context);
+                playSuccessSound(sender);
+            } else if (commandBuilder.consoleExecutor != null) {
+                commandBuilder.consoleExecutor.execute(sender, context);
+                commandBuilder.onSucceed.accept(context);
+            } else {
+                sender.sendMessage(commandBuilder.usageMessage);
+                commandBuilder.onFail.accept(context);
+                playFailSound(sender);
             }
+            return;
         }
 
-        // Validate and parse arguments based on usages
-        for (Usage usage : usages) {
-            int position = usage.getPosition();
-            if (context.getArgs().size() < position + 1) {
-                sender.sendMessage(usageMessage);
-                onFail.accept(context);
-                return;
-            }
-            try {
-                String arg = context.getArgs().get(position);
-                if (usage.getType() == Double.class) {
-                    Double.parseDouble(arg);
-                } else if (usage.getType() == Integer.class) {
-                    Integer.parseInt(arg);
-                } else if (usage.getType() == String.class) {
-                    // No parsing needed for strings
+        String subCommandName = args.get(0);
+        for (SubCommandBuilder subCommand : commandBuilder.subCommands) {
+            if (subCommand.getName().equalsIgnoreCase(subCommandName)) {
+                if (commandBuilder.debugEnabled) {
+                    plugin.getLogger().log(Level.INFO, "Executing subcommand: " + subCommandName);
                 }
-            } catch (NumberFormatException e) {
-                sender.sendMessage(usageMessage);
-                onFail.accept(context);
+                args.remove(0);
+                CommandContext subCommandContext = new CommandContext(sender, context.getLabel(), args, context.getAdditionalData());
+                executeSubCommand(sender, subCommandContext, args, subCommand);
                 return;
             }
         }
 
-        // Execute subcommands if any
-        if (!context.getArgs().isEmpty()) {
-            String subCommandName = context.getArgs().get(0);
-            for (SubCommandBuilder subCommand : subCommands) {
-                if (subCommand.getName().equalsIgnoreCase(subCommandName)) {
-                    subCommand.execute(new CommandContext(
-                            sender, subCommandName, context.getArgs().subList(1, context.getArgs().size()), context.getAdditionalData()));
-                    return;
+        // If no subcommand is found, execute the main command logic
+        if (sender instanceof Player) {
+            if (commandBuilder.playerExecutor != null) {
+                if (commandBuilder.debugEnabled) {
+                    plugin.getLogger().log(Level.INFO, "Executing player command");
                 }
-            }
-        }
-
-        // Execute the main command if no subcommand matches
-        if (requirement.test(context)) {
-            try {
-                executor.onCommand(sender, null, context.getLabel(), context.getArgs().toArray(new String[0]));
-                onSucceed.accept(context);
-            } catch (Exception e) {
-                onFail.accept(context);
-                e.printStackTrace();
+                commandBuilder.playerExecutor.execute((Player) sender, context);
+                commandBuilder.onSucceed.accept(context);
+                playSuccessSound(sender);
+            } else {
+                sender.sendMessage(commandBuilder.playerErrorMessage);
+                commandBuilder.onFail.accept(context);
+                playFailSound(sender);
             }
         } else {
-            sender.sendMessage(permissionRequiredMessage);
-            onFail.accept(context);
+            if (commandBuilder.consoleExecutor != null) {
+                if (commandBuilder.debugEnabled) {
+                    plugin.getLogger().log(Level.INFO, "Executing console command");
+                }
+                commandBuilder.consoleExecutor.execute(sender, context);
+                commandBuilder.onSucceed.accept(context);
+            } else {
+                sender.sendMessage(commandBuilder.consoleErrorMessage);
+                commandBuilder.onFail.accept(context);
+                playFailSound(sender);
+            }
         }
     }
 
-    // Provides tab completion suggestions based on the context
     public List<String> tabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        CommandContext context = new CommandContext(sender, alias, Arrays.asList(args), new HashMap<>());
         List<String> completions = new ArrayList<>();
-        if (context.getArgs().isEmpty()) {
-            completions.addAll(tabCompleter.onTabComplete(sender, command, alias, args));
-        } else {
-            String subCommandName = context.getArgs().get(0);
+
+        int currentLevel = args.length; // Determine current level based on argument length
+
+        if (currentLevel == 1) {
             for (SubCommandBuilder subCommand : subCommands) {
-                if (subCommand.getName().equalsIgnoreCase(subCommandName)) {
-                    completions.addAll(subCommand.tabComplete(sender, command, subCommandName, args));
-                    return completions;
+                if (subCommand.getName().toLowerCase().startsWith(args[0].toLowerCase())) {
+                    completions.add(subCommand.getName());
                 }
             }
-            // Include argument tab completions
-            for (Usage usage : usages) {
-                if (context.getArgs().size() == usage.getPosition() + 1) {
+            if (completions.isEmpty()) {
+                for (Usage usage : usages) {
                     completions.add(usage.getTabComplete());
                 }
             }
+        } else {
+            String subCommandName = args[0];
+            for (SubCommandBuilder subCommand : subCommands) {
+                if (subCommand.getName().equalsIgnoreCase(subCommandName)) {
+                    List<String> subCompletions = subCommand.tabComplete(sender, command, alias, Arrays.copyOfRange(args, 1, args.length));
+                    if (!subCompletions.isEmpty()) {
+                        completions.addAll(subCompletions);
+                    } else {
+                        for (Usage usage : usages) {
+                            if (args.length == usage.getPosition() + 1) {
+                                completions.add(usage.getTabComplete());
+                            }
+                        }
+                    }
+                    return completions;
+                }
+            }
+        }
+        if (debugEnabled) {
+            plugin.getLogger().log(Level.INFO, "Tab completions: " + completions);
         }
         return completions;
     }
 
-    // Automatically configure the command in the plugin
     public void register(JavaPlugin plugin) {
         this.plugin = plugin;
         Command command = build();
-        plugin.getCommand(name).setExecutor((CommandExecutor) command);
-        plugin.getCommand(name).setTabCompleter((TabCompleter) command);
-    }
-
-    // Register the command in the plugin.yml file
-    private void registerCommandInPluginYml() {
-        File pluginYml = new File(plugin.getDataFolder(), "plugin.yml");
-        try (FileWriter writer = new FileWriter(pluginYml, true)) {
-            writer.write("\ncommands:\n");
-            writer.write("  " + name + ":\n");
-            writer.write("    description: " + usageMessage + "\n");
-            writer.write("    usage: " + usageMessage + "\n");
-            if (!permissions.isEmpty()) {
-                writer.write("    permission: " + String.join(",", permissions) + "\n");
-                writer.write("    permission-message: " + permissionRequiredMessage + "\n");
-            }
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to register command in plugin.yml", e);
+        if (plugin.getCommand(name) != null) {
+            plugin.getCommand(name).setExecutor(this);
+            plugin.getCommand(name).setTabCompleter(this);
+        } else {
+            plugin.getLogger().log(Level.SEVERE, "Command not found in plugin.yml: " + name);
         }
     }
 
-    // Getter methods for all fields
     public String getName() {
         return name;
     }
 
-    public CommandExecutor getExecutor() {
-        return executor;
+    public PlayerCommandExecutor getPlayerExecutor() {
+        return playerExecutor;
+    }
+
+    public ConsoleCommandExecutor getConsoleExecutor() {
+        return consoleExecutor;
     }
 
     public TabCompleter getTabCompleter() {
@@ -309,8 +351,12 @@ public class CommandBuilder {
         return permissions;
     }
 
-    public boolean isAcceptsCmd() {
-        return acceptsCmd;
+    public String getPlayerErrorMessage() {
+        return playerErrorMessage;
+    }
+
+    public String getConsoleErrorMessage() {
+        return consoleErrorMessage;
     }
 
     public List<SubCommandBuilder> getSubCommands() {
@@ -319,5 +365,41 @@ public class CommandBuilder {
 
     public List<Usage> getUsages() {
         return usages;
+    }
+
+    public JavaPlugin getPlugin() {
+        return plugin;
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        CommandContext context = new CommandContext(sender, label, Arrays.asList(args), new HashMap<>());
+        if (debugEnabled) {
+            plugin.getLogger().log(Level.INFO, "onCommand called with args: " + Arrays.toString(args));
+        }
+        execute(context);
+        return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (debugEnabled) {
+            plugin.getLogger().log(Level.INFO, "onTabComplete called with args: " + Arrays.toString(args));
+        }
+        return tabComplete(sender, command, alias, args);
+    }
+
+    private void playSuccessSound(CommandSender sender) {
+        if (sender instanceof Player) {
+            Player player = (Player) sender;
+            player.playSound(player.getLocation(), successSound, 1.0f, 1.0f);
+        }
+    }
+
+    private void playFailSound(CommandSender sender) {
+        if (sender instanceof Player) {
+            Player player = (Player) sender;
+            player.playSound(player.getLocation(), failSound, 1.0f, 1.0f);
+        }
     }
 }
