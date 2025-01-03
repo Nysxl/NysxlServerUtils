@@ -6,16 +6,3 @@ api-version: 1.20
 softdepend:
   - PlaceholderAPI
   - Vault
-commands:
-  viewrequests:
-    description: View active requests.
-  reason:
-    description: Provide a reason for a specific command.
-  viewprofile:
-    description: View another player's profile.
-  setTax:
-    description: Set the bounty tax percentage.
-  getTaxes:
-    description: View total taxes collected.
-  setAvailableTax:
-    description: Set the available tax amount.

@@ -1,26 +1,28 @@
 package org.Nysxl;
 
 import net.milkbowl.vault.economy.Economy;
-import org.Nysxl.CommandManager.CommandRegistry;
-import org.Nysxl.Components.PermissionChecker.DynamicPermissionCheckCommand;
-import org.Nysxl.Components.Profiles.ProfileViewer;
+import org.Nysxl.CommandManager.CommandBuilder;
+import org.Nysxl.CommandManager.CommandManager;
 import org.Nysxl.DynamicConfigManager.DynamicConfigManager;
-import org.Nysxl.InventoryManager.DynamicInventoryHandler;
 import org.Nysxl.Utils.Economy.EconomyManager;
-import org.Nysxl.Utils.StringBuildHandler;
 import org.bukkit.ChatColor;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.command.*;
+
+import java.util.List;
 
 public class NysxlServerUtils extends JavaPlugin {
 
-    private CommandRegistry commandRegistry;
-    private static DynamicConfigManager porfileConfigManager;
+    private static DynamicConfigManager profileConfigManager;
     private static DynamicConfigManager economyConfigManager;
     private static Economy economy;
     private static EconomyManager economyManager;
     private static NysxlServerUtils instance;
+    private CommandManager commandManager;
 
     @Override
     public void onEnable() {
@@ -30,9 +32,7 @@ public class NysxlServerUtils extends JavaPlugin {
         registerConfigManager();
 
         // Initialize CommandRegistry
-        commandRegistry = new CommandRegistry(this);
-
-        new ProfileViewer();
+        commandManager = new CommandManager();
 
         // Setup Vault
         if (!setupEconomy()) {
@@ -49,8 +49,8 @@ public class NysxlServerUtils extends JavaPlugin {
     }
 
     private void registerConfigManager() {
-        porfileConfigManager = new DynamicConfigManager(this);
-        porfileConfigManager.loadOrCreateDefaultConfig("ProfileViewerConfig"); // Explicitly load the profile config
+        profileConfigManager = new DynamicConfigManager(this);
+        profileConfigManager.loadOrCreateDefaultConfig("ProfileViewerConfig"); // Explicitly load the profile config
 
         economyConfigManager = new DynamicConfigManager(this);
         economyConfigManager.loadOrCreateDefaultConfig("economy"); // Load the economy config
@@ -58,151 +58,123 @@ public class NysxlServerUtils extends JavaPlugin {
         economyManager = new EconomyManager(economyConfigManager);
     }
 
-    /*
-        * Register all commands for the plugin
-     */
     private void registerCommands() {
-        registerViewRequestsCommand();
-        registerReasonCommand();
-        registerViewProfileCommand();
         registerTaxCommand();
         registerTaxViewerCommand();
         registerSetAvailableTaxCommand();
     }
 
     private void registerTaxCommand() {
-        commandRegistry.createCommand("setTax")
-                .requirePlayer()
-                .check(sender -> sender instanceof Player, "Only players can use this command.")
-                .checkWithArgs((sender, args) -> {
-                    if (args == null || args.length < 1) {
-                        throw new IllegalArgumentException("Usage: /setTax <percentage>");
-                    }
-
+        CommandExecutor executor = new CommandExecutor() {
+            @Override
+            public boolean onCommand(CommandSender sender, org.bukkit.command.Command command, String label, String[] args) {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can use this command.");
+                    return true;
+                }
+                Player player = (Player) sender;
+                try {
                     double newTax = Double.parseDouble(args[0]);
                     if (newTax < 0 || newTax > 1) {
-                        throw new IllegalArgumentException("Tax percentage must be between 0 and 1.");
+                        player.sendMessage(ChatColor.RED + "Tax percentage must be between 0 and 1.");
+                        return true;
                     }
-                }, "Invalid arguments.")
-                .onFallback((sender, partial) -> {
-                    sender.sendMessage(ChatColor.RED + "Usage: /setTax <percentage>");
-                })
-                .onExecute((sender, args) -> {
-                    try {
-                        double newTax = Double.parseDouble(args[0]);
-                        economyManager.setTaxRate(newTax);
-                        sender.sendMessage(ChatColor.GREEN + "Tax percentage updated to " + (newTax * 100) + "%.");
-                    } catch (NumberFormatException e) {
-                        sender.sendMessage(ChatColor.RED + "Invalid number format.");
-                    }
-                })
-                .register();
+                    economyManager.setTaxRate(newTax);
+                    player.sendMessage(ChatColor.GREEN + "Tax percentage updated to " + (newTax * 100) + "%.");
+                } catch (NumberFormatException e) {
+                    player.sendMessage(ChatColor.RED + "Invalid number format.");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    player.sendMessage(ChatColor.RED + "Usage: /setTax <percentage>");
+                }
+                return true;
+            }
+        };
+
+        Command setTaxCommand = new CommandBuilder()
+                .setName("setTax")
+                .usage(0, Double.class, "<percentage>")
+                .setExecutor(executor)
+                .setTabCompleter((sender, command, alias, args) -> List.of("<percentage>"))
+                .setUsageMessage(ChatColor.RED + "Usage: /setTax <percentage>") // Optional
+                .onFail(context -> context.getSender().sendMessage(ChatColor.RED + "Failed to execute tax command.")) // Optional
+                .build();
+
+        commandManager.registerCommand(this, setTaxCommand.getName(), executor);
     }
 
     private void registerTaxViewerCommand() {
-        commandRegistry.createCommand("getTaxes")
-                .requirePlayer()
-                .withPermission("bounty.gettaxes")
-                .onExecute((sender, args) -> {
-                    double totalTaxes = economyManager.getAvailableTaxes();
-                    sender.sendMessage(ChatColor.GREEN + "Total taxes collected so far: " + totalTaxes);
-                })
-                .register();
-    }
+        CommandExecutor executor = new CommandExecutor() {
+            @Override
+            public boolean onCommand(CommandSender sender, org.bukkit.command.Command command, String label, String[] args) {
+                double totalTaxes = economyManager.getAvailableTaxes();
+                if (sender instanceof Player) {
+                    ((Player) sender).sendMessage(ChatColor.GREEN + "Total taxes collected so far: " + totalTaxes);
+                } else {
+                    sender.sendMessage("Total taxes collected so far: " + totalTaxes);
+                }
+                return true;
+            }
+        };
 
-    private void registerViewRequestsCommand() {
-        commandRegistry.createCommand("viewrequests")
-                .requirePlayer()
-                .withPermission("admin.viewrequests")
-                .onExecute((sender, args) -> {
-                    Player player = (Player) sender; // Safe cast due to requirePlayer
-                    DynamicPermissionCheckCommand.displayActiveRequests(player);
-                })
-                .register();
-    }
+        Command getTaxesCommand = new CommandBuilder()
+                .setName("getTaxes")
+                .acceptsCmd() // Allow this command to be executed from the console
+                .setExecutor(executor)
+                .setTabCompleter((sender, command, alias, args) -> List.of())
+                .build();
 
-    private void registerReasonCommand() {
-        commandRegistry.createCommand("reason")
-                .requirePlayer()
-                .onExecute((sender, args) -> {
-                    if (args.length < 1) {
-                        sender.sendMessage("Usage: /reason <command>");
-                        return;
-                    }
-                    Player player = (Player) sender; // Safe cast due to requirePlayer
-                    DynamicPermissionCheckCommand.handleReason(player, args[0]);
-                })
-                .register();
-    }
-
-    private void registerViewProfileCommand() {
-        commandRegistry.createCommand("viewprofile")
-                .requirePlayer()
-                .onExecute((sender, args) -> {
-                    if (args.length < 1) {
-                        sender.sendMessage("Usage: /viewprofile <player>");
-                        return;
-                    }
-                    Player player = (Player) sender; // Safe cast due to requirePlayer
-                    Player target = getServer().getPlayer(args[0]);
-                    if (target == null) {
-                        player.sendMessage("Player not found.");
-                        return;
-                    }
-                    ProfileViewer.openProfile(player, target);
-                })
-                .register();
+        commandManager.registerCommand(this, getTaxesCommand.getName(), executor);
     }
 
     private void registerSetAvailableTaxCommand() {
-        commandRegistry.createCommand("setAvailableTax")
-                .requirePlayer()
-                .withPermission("admin.economy.setavailabletaxes")
-                .check(sender -> sender instanceof Player, "Only players can use this command.")
-                .checkWithArgs((sender, args) -> {
-                    if(args == null || args.length < 1) {
-                        throw new IllegalArgumentException("Usage: /setAvailableTax <amount>");
-                    }
-
+        CommandExecutor executor = new CommandExecutor() {
+            @Override
+            public boolean onCommand(CommandSender sender, org.bukkit.command.Command command, String label, String[] args) {
+                if (!(sender instanceof Player)) {
+                    sender.sendMessage("Only players can use this command.");
+                    return true;
+                }
+                Player player = (Player) sender;
+                try {
                     double newTax = Double.parseDouble(args[0]);
-                    if(newTax < 0) {
-                        throw new IllegalArgumentException("Tax amount must be greater than 0.");
+                    if (newTax < 0) {
+                        player.sendMessage(ChatColor.RED + "Tax amount must be greater than 0.");
+                        return true;
                     }
-                }, "Invalid arguments.")
-                .onFallback((sender, partial) -> {
-                    sender.sendMessage(ChatColor.RED + "Usage: /setAvailableTax <amount>");
-                })
-                .onExecute((sender, args) -> {
-                    try {
-                        double newTax = Double.parseDouble(args[0]);
-                        economyManager.setAvailableTaxes(newTax);
-                        sender.sendMessage(ChatColor.GREEN + "Available tax updated to " + newTax + ".");
-                    } catch (NumberFormatException e) {
-                        sender.sendMessage(ChatColor.RED + "Invalid number format.");
-                    }
-                })
-                .register();
+                    economyManager.setAvailableTaxes(newTax);
+                    player.sendMessage(ChatColor.GREEN + "Available tax updated to " + newTax + ".");
+                } catch (NumberFormatException e) {
+                    player.sendMessage(ChatColor.RED + "Invalid number format.");
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    player.sendMessage(ChatColor.RED + "Usage: /setAvailableTax <amount>");
+                }
+                return true;
+            }
+        };
+
+        org.bukkit.command.Command setAvailableTaxCommand = new CommandBuilder()
+                .setName("setAvailableTax")
+                .usage(0, Double.class, "<amount>")
+                .setExecutor(executor)
+                .setTabCompleter((sender, command, alias, args) -> List.of("<amount>"))
+                .setUsageMessage(ChatColor.RED + "Usage: /setAvailableTax <amount>") // Optional
+                .onFail(context -> context.getSender().sendMessage(ChatColor.RED + "Failed to execute setAvailableTax command.")) // Optional
+                .build();
+
+        commandManager.registerCommand(this, setAvailableTaxCommand.getName(), executor);
     }
 
-    //register inventory events
-    private void registerInventoryEvents() {
-        DynamicInventoryHandler.registerGlobal(this);
-
-        DynamicPermissionCheckCommand permissionHandler = new DynamicPermissionCheckCommand(porfileConfigManager);
-        permissionHandler.register(this);
+    // Return the profile config manager
+    public static DynamicConfigManager getProfileConfigManager() {
+        return profileConfigManager;
     }
 
-    //return the profile config manager
-    public static DynamicConfigManager getPorfileConfigManager() {
-        return porfileConfigManager;
-    }
-
-    //return the economy config manager
+    // Return the economy config manager
     public static DynamicConfigManager getEconomyConfigManager() {
         return economyConfigManager;
     }
 
-    //set up the economy
+    // Set up the economy
     private boolean setupEconomy() {
         if (getServer().getPluginManager().getPlugin("Vault") == null) {
             return false;
@@ -215,19 +187,23 @@ public class NysxlServerUtils extends JavaPlugin {
         return economy != null;
     }
 
-    //returns Vault economy
+    // Returns Vault economy
     public static Economy getEconomy() {
         return economy;
     }
 
-    //returns instance of plugin
+    // Returns instance of plugin
     public static NysxlServerUtils getInstance() {
         return instance;
     }
 
-    //returns EconomyManager for easy economy management.
+    // Returns EconomyManager for easy economy management
     public static EconomyManager getEconomyManager() {
         return economyManager;
     }
 
+    // Register inventory events
+    private void registerInventoryEvents() {
+        // Implementation for registering inventory events
+    }
 }
